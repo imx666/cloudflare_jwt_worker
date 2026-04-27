@@ -9,7 +9,7 @@
 import { jwtVerify, JWTPayload, importSPKI } from 'jose';
 
 // Worker 版本号，每次部署前递增
-const WORKER_VERSION = 'v1.3';
+const WORKER_VERSION = 'v1.6';
 
 export interface Env {
   // JWT 公钥（PEM 格式），用于验证 RS256/ES256 签名
