@@ -1,0 +1,18 @@
+name = "cloudflare-auth-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+# JWT 公钥（PEM 格式），用于验证 ES256 签名
+# 后端持有私钥签发 JWT，Workers 只存公钥验证
+# 生成方式：openssl ecparam -name prime256v1 -genkey -noout -out private.pem
+#           openssl ec -in private.pem -pubout -out public.pemJWT_PUBLIC_KEY = '''-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ0n/4FC+GKh1RcC7oqPHrVKKnNYl
+5fjX0+Nam5YFGJs5+ivNtmIvitvCNTMAUGeA0XfbW6GtEWuLImELipMoag==
+-----END PUBLIC KEY-----'''
+
+
+# 后端服务地址（根据实际环境修改）
+UPSTREAM_USER_SERVICE = "http://volefuture.com"
+UPSTREAM_ORDER_SERVICE = "http://volefuture.com"
+UPSTREAM_PRODUCT_SERVICE = "http://volefuture.com"
