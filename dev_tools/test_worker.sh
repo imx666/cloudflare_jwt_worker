@@ -63,8 +63,40 @@ test_health() {
 
     if [ "$http_code" = "200" ]; then
         echo "✅ Health 检查通过"
+        # 提取版本号
+        version=$(echo "$body" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+        if [ -n "$version" ]; then
+            echo "📦 Worker 版本: $version"
+        fi
     else
         echo "❌ Health 检查失败"
+    fi
+}
+
+# 测试 token-info 接口
+test_token_info() {
+    echo ""
+    echo "=== 测试 Token 信息接口 ==="
+    issue_jwt "testuser"
+    echo "GET $WORKER_URL/api/v1/token-info"
+    echo "Authorization: Bearer $JWT"
+    echo ""
+
+    response=$(curl -s -w "\nHTTP_CODE:%{http_code}" -H "Authorization: Bearer $JWT" "$WORKER_URL/api/v1/token-info")
+    http_code=$(echo "$response" | grep "HTTP_CODE" | cut -d: -f2)
+    body=$(echo "$response" | sed '/HTTP_CODE/d')
+
+    echo "响应: $body"
+    echo "状态码: $http_code"
+
+    if [ "$http_code" = "200" ]; then
+        version=$(echo "$body" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+        expires_in=$(echo "$body" | grep -o '"expires_in":[0-9]*' | cut -d':' -f2)
+        echo "📦 Worker 版本: $version"
+        echo "⏱️  Token 剩余有效期: ${expires_in}s"
+        echo "✅ Token 信息接口正常"
+    else
+        echo "❌ Token 信息接口失败"
     fi
 }
 
@@ -244,6 +276,7 @@ interactive_test() {
         "测试过期 Token"
         "测试无效 Token"
         "测试缺少 sub 的 Token"
+        "测试 Token 信息接口 (/api/v1/token-info)"
         "运行所有测试"
         "退出"
     )
@@ -273,7 +306,8 @@ interactive_test() {
             8) test_expired_token ;;
             9) test_invalid_token ;;
             10) test_missing_sub ;;
-            11)
+            11) test_token_info ;;
+            12)
                 echo ""
                 echo "========================================"
                 echo "   运行所有测试..."
@@ -288,12 +322,13 @@ interactive_test() {
                 test_expired_token
                 test_invalid_token
                 test_missing_sub
+                test_token_info
                 echo ""
                 echo "========================================"
                 echo "   所有测试完成!"
                 echo "========================================"
                 ;;
-            12) break ;;
+            13) break ;;
             *) echo "无效选项" ;;
         esac
     done
@@ -332,6 +367,9 @@ main() {
             issue_jwt "$user_id"
             test_authenticated "/auth/beekeeper/visors/9001/status" "Auth 代理路由" "$user_id" "POST" '{"status":"active"}'
             ;;
+        token-info)
+            test_token_info
+            ;;
         unauthorized) test_no_token ;;
         expired) test_expired_token ;;
         invalid) test_invalid_token ;;
@@ -350,6 +388,7 @@ main() {
             test_expired_token
             test_invalid_token
             test_missing_sub
+            test_token_info
             echo ""
             echo "========================================"
             echo "   所有测试完成!"

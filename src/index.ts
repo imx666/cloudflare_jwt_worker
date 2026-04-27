@@ -8,6 +8,9 @@
  */
 import { jwtVerify, JWTPayload, importSPKI } from 'jose';
 
+// Worker 版本号，每次部署前递增
+const WORKER_VERSION = 'v1.3';
+
 export interface Env {
   // JWT 公钥（PEM 格式），用于验证 RS256/ES256 签名
   // 后端持有私钥签发 JWT，Workers 只存公钥验证
@@ -110,7 +113,7 @@ export default {
     // 公开路由（无需认证）
     // ============================================
     if (url.pathname === '/health' || url.pathname === '/ping') {
-      return new Response(JSON.stringify({ status: 'ok' }), {
+      return new Response(JSON.stringify({ status: 'ok', version: WORKER_VERSION }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -139,12 +142,29 @@ export default {
       return errorResponse('Unauthorized: Invalid token payload', 401);
     }
 
+    // 计算 token 剩余有效时间（秒）
+    const now = Math.floor(Date.now() / 1000);
+    const expiresIn = payload.exp ? Math.max(0, payload.exp - now) : null;
+
     // ============================================
     // 路由分发
     // ============================================
     const path = url.pathname;
 
-    if (path.startsWith('/api/v1/users')) {
+    if (path === '/api/v1/token-info') {
+      // 特殊测试接口：返回 token 信息和剩余过期时间
+      return new Response(JSON.stringify({
+        version: WORKER_VERSION,
+        user_id: payload.sub,
+        issued_at: payload.iat,
+        expires_at: payload.exp,
+        expires_in: expiresIn,
+        token_valid: true,
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+    } else if (path.startsWith('/api/v1/users')) {
       // 用户服务
       return proxyToUpstream(env.UPSTREAM_USER_SERVICE, request);
 
@@ -162,6 +182,15 @@ export default {
       const upstreamPath = path.replace('/auth', '');
       const authService = env.UPSTREAM_AUTH_SERVICE || env.UPSTREAM_USER_SERVICE || 'http://volefuture.com';
       return proxyToUpstream(authService, request, upstreamPath);
+
+    } else if (path === '/version') {
+      // 版本号查询接口（无需认证）
+      return new Response(JSON.stringify({
+        version: WORKER_VERSION,
+        status: 'ok',
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
 
     } else {
       // 未匹配的路由
