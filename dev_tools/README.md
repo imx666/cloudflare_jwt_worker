@@ -6,9 +6,10 @@
 
 ```
 dev_tools/
-├── issue_jwt.ts    # JWT 签发工具
+├── issue_jwt.py    # JWT 签发工具 (Python，推荐)
+├── issue_jwt.ts    # JWT 签发工具 (Node.js)
 ├── test_worker.sh  # Worker 测试脚本
-└── README.md        # 本文档
+└── README.md       # 本文档
 ```
 
 ## 准备
@@ -45,13 +46,13 @@ npx ts-node dev_tools/issue_jwt.ts <user_id> [过期时间]
 
 ```bash
 # 为用户 alice 签发 1 小时有效的 JWT
-npx ts-node dev_tools/issue_jwt.ts alice
+python dev_tools/issue_jwt.py alice
 
 # 为用户 bob 签发 2 小时有效的 JWT
-npx ts-node dev_tools/issue_jwt.ts bob 2h
+python dev_tools/issue_jwt.py bob 2h
 
 # 为用户 charlie 签发 7 天有效的 JWT
-npx ts-node dev_tools/issue_jwt.ts charlie 7d
+python dev_tools/issue_jwt.py charlie 7d
 ```
 
 签发后会输出常用测试命令，可以直接复制使用。
@@ -69,8 +70,11 @@ npx ts-node dev_tools/issue_jwt.ts charlie 7d
 #### 命令行测试
 
 ```bash
-# 测试 health 端点
+# 测试 health 端点（显示 Worker 版本）
 ./dev_tools/test_worker.sh health
+
+# 测试版本号接口（无需认证）
+curl https://cf-jwt.imxwilson.workers.dev/version
 
 # 签发 JWT 并测试用户服务
 ./dev_tools/test_worker.sh issue alice
@@ -81,11 +85,17 @@ npx ts-node dev_tools/issue_jwt.ts charlie 7d
 ./dev_tools/test_worker.sh orders bob
 ./dev_tools/test_worker.sh products charlie
 
+# 测试 Auth 代理路由（POST，路径重写）
+./dev_tools/test_worker.sh auth
+
+# 测试 Token 信息接口（返回 JWT 过期时间）
+./dev_tools/test_worker.sh token-info
+
 # 测试错误情况
 ./dev_tools/test_worker.sh unauthorized   # 测试无 token
-./dev_tools/test_worker.sh expired         # 测试过期 token
-./dev_tools/test_worker.sh invalid         # 测试无效签名
-./dev_tools/test_worker.sh missing-sub     # 测试缺少 sub 字段
+./dev_tools/test_worker.sh expired        # 测试过期 token
+./dev_tools/test_worker.sh invalid        # 测试无效签名
+./dev_tools/test_worker.sh missing-sub    # 测试缺少 sub 字段
 
 # 运行所有测试
 ./dev_tools/test_worker.sh all
@@ -96,8 +106,14 @@ npx ts-node dev_tools/issue_jwt.ts charlie 7d
 ```bash
 WORKER_URL="https://cf-jwt.imxwilson.workers.dev"
 
-# Health 检查（无需认证）
+# Health 检查（无需认证，返回版本号）
 curl $WORKER_URL/health
+
+# 版本号查询（无需认证）
+curl $WORKER_URL/version
+
+# Token 信息查询（返回 user_id、issued_at、expires_at、expires_in）
+curl -H "Authorization: Bearer <your_jwt_token>" $WORKER_URL/api/v1/token-info
 
 # 带 JWT 访问用户服务
 curl -H "Authorization: Bearer <your_jwt_token>" $WORKER_URL/api/v1/users/me
@@ -107,6 +123,13 @@ curl -H "Authorization: Bearer <your_jwt_token>" $WORKER_URL/api/v1/orders
 
 # 带 JWT 访问商品服务
 curl -H "Authorization: Bearer <your_jwt_token>" $WORKER_URL/api/v1/products
+
+# Auth 代理路由（POST，/auth 前缀会被去掉）
+curl -X POST \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"active"}' \
+  $WORKER_URL/auth/beekeeper/visors/9001/status
 
 # 测试无 token（应该返回 401）
 curl $WORKER_URL/api/v1/users/me
@@ -119,10 +142,12 @@ curl -H "Authorization: Bearer <expired_token>" $WORKER_URL/api/v1/users/me
 
 | 测试用例 | 说明 | 预期结果 |
 |---------|------|---------|
-| `health` | 测试健康检查端点 | 200 OK |
-| `users` | 测试用户服务路由 | 200/502 (JWT验证通过) |
-| `orders` | 测试订单服务路由 | 200/502 (JWT验证通过) |
-| `products` | 测试商品服务路由 | 200/502 (JWT验证通过) |
+| `health` | 测试健康检查端点 | 200 OK，显示版本号 |
+| `users` | 测试用户服务路由 | 200/502/404 (JWT验证通过) |
+| `orders` | 测试订单服务路由 | 200/502/404 (JWT验证通过) |
+| `products` | 测试商品服务路由 | 200/502/404 (JWT验证通过) |
+| `auth` | 测试 Auth 代理路由（POST，路径重写） | 200 (JWT验证通过) |
+| `token-info` | 测试 Token 信息接口 | 200，返回过期时间 |
 | `unauthorized` | 无 Authorization 头 | 401 Unauthorized |
 | `expired` | 使用已过期的 JWT | 401 Token expired |
 | `invalid` | 使用伪造签名的 JWT | 401 Invalid signature |
@@ -132,11 +157,22 @@ curl -H "Authorization: Bearer <expired_token>" $WORKER_URL/api/v1/users/me
 
 | 端点 | 方法 | 认证 | 说明 |
 |------|------|------|------|
-| `/health` | GET | 无 | 健康检查 |
+| `/health` | GET | 无 | 健康检查，返回版本号 |
 | `/ping` | GET | 无 | 健康检查 |
+| `/version` | GET | 无 | 查询 Worker 版本号 |
+| `/api/v1/token-info` | GET | JWT | 返回当前 token 信息（含剩余过期时间） |
 | `/api/v1/users/*` | ANY | JWT | 路由到用户服务 |
 | `/api/v1/orders/*` | ANY | JWT | 路由到订单服务 |
 | `/api/v1/products/*` | ANY | JWT | 路由到商品服务 |
+| `/auth/*` | ANY | JWT | 去掉 `/auth` 前缀后转发到上游 |
+
+### Auth 代理路由说明
+
+`/auth/*` 是一个特殊的路由，用于路径重写场景：
+
+- Worker 端点：`POST /auth/beekeeper/visors/9001/status`
+- 转发到上游：`POST https://volefuture.com/beekeeper/visors/9001/status`
+- `/auth` 前缀会被自动去掉
 
 ## JWT 要求
 
@@ -144,3 +180,8 @@ curl -H "Authorization: Bearer <expired_token>" $WORKER_URL/api/v1/users/me
 - 必须包含 `sub` 字段（用户ID）
 - 必须包含 `iat` (签发时间) 和 `exp` (过期时间)
 - 使用项目私钥 `../private.pem` 签发
+
+## 注意事项
+
+- **上游地址必须使用 HTTPS**：如果配置为 `http://`，源站可能返回 301 重定向，导致 JWT 头丢失，请求失败。
+- **版本号**：`src/index.ts` 中的 `WORKER_VERSION` 常量用于标识部署版本，每次部署前建议递增。
