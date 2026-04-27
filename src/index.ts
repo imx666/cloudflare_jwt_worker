@@ -17,6 +17,7 @@ export interface Env {
   UPSTREAM_USER_SERVICE: string;
   UPSTREAM_ORDER_SERVICE: string;
   UPSTREAM_PRODUCT_SERVICE: string;
+  UPSTREAM_AUTH_SERVICE: string;
 }
 
 interface CustomJWTPayload extends JWTPayload {
@@ -69,13 +70,18 @@ function errorResponse(message: string, status: number): Response {
 
 /**
  * 转发请求到上游服务
+ * @param upstreamBaseUrl 上游服务基础地址
+ * @param request 原始请求
+ * @param overridePath 可选，覆盖请求路径（用于路径重写场景）
  */
 async function proxyToUpstream(
   upstreamBaseUrl: string,
-  request: Request
+  request: Request,
+  overridePath?: string
 ): Promise<Response> {
   const url = new URL(request.url);
-  const upstreamUrl = `${upstreamBaseUrl}${url.pathname}${url.search}`;
+  const upstreamPath = overridePath ?? url.pathname;
+  const upstreamUrl = `${upstreamBaseUrl}${upstreamPath}${url.search}`;
 
   const upstreamResponse = await fetch(upstreamUrl, {
     method: request.method,
@@ -145,6 +151,12 @@ export default {
     } else if (path.startsWith('/api/v1/products')) {
       // 商品服务
       return proxyToUpstream(env.UPSTREAM_PRODUCT_SERVICE, request);
+
+    } else if (path.startsWith('/auth/')) {
+      // Auth 代理路由：去掉 /auth 前缀后转发到上游
+      // 例如 /auth/beekeeper/visors/9001/status -> /beekeeper/visors/9001/status
+      const upstreamPath = path.replace('/auth', '');
+      return proxyToUpstream(env.UPSTREAM_AUTH_SERVICE, request, upstreamPath);
 
     } else {
       // 未匹配的路由
