@@ -86,13 +86,20 @@ async function proxyToUpstream(
   const upstreamPath = overridePath ?? url.pathname;
   const upstreamUrl = `${upstreamBaseUrl}${upstreamPath}${url.search}`;
 
+  // 解析上游域名，用于替换 Host 头
+  const upstreamHost = new URL(upstreamBaseUrl).host;
+
+  // 克隆请求头，替换 Host 为上游域名
+  const upstreamHeaders = new Headers(request.headers);
+  upstreamHeaders.set('Host', upstreamHost);
+
   // 克隆请求以安全读取 body
   const reqClone = request.clone();
   const body = await reqClone.text();
 
   const upstreamResponse = await fetch(upstreamUrl, {
     method: request.method,
-    headers: request.headers,
+    headers: upstreamHeaders,
     body: body || undefined,
   });
 
