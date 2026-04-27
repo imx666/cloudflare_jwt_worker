@@ -6,7 +6,8 @@ compatibility_date = "2025-01-01"
 # JWT 公钥（PEM 格式），用于验证 ES256 签名
 # 后端持有私钥签发 JWT，Workers 只存公钥验证
 # 生成方式：openssl ecparam -name prime256v1 -genkey -noout -out private.pem
-#           openssl ec -in private.pem -pubout -out public.pemJWT_PUBLIC_KEY = '''-----BEGIN PUBLIC KEY-----
+#           openssl ec -in private.pem -pubout -out public.pem
+JWT_PUBLIC_KEY = '''-----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEHFCSJMTadjndgDnAV9akaF0RT6Ya
 09Iw324DuMxaMJmU4y92M4K/slzqLz74MSXZCP3BpbD1+EXtPIH5lqvz9w==
 -----END PUBLIC KEY-----'''
