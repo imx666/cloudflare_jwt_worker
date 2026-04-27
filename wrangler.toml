@@ -1,4 +1,4 @@
-name = "cloudflare-auth-worker"
+name = "cf-jwt"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
