@@ -83,10 +83,14 @@ async function proxyToUpstream(
   const upstreamPath = overridePath ?? url.pathname;
   const upstreamUrl = `${upstreamBaseUrl}${upstreamPath}${url.search}`;
 
+  // 克隆请求以安全读取 body
+  const reqClone = request.clone();
+  const body = await reqClone.text();
+
   const upstreamResponse = await fetch(upstreamUrl, {
     method: request.method,
     headers: request.headers,
-    body: request.body,
+    body: body || undefined,
   });
 
   return new Response(upstreamResponse.body, {
