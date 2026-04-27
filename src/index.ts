@@ -156,7 +156,8 @@ export default {
       // Auth 代理路由：去掉 /auth 前缀后转发到上游
       // 例如 /auth/beekeeper/visors/9001/status -> /beekeeper/visors/9001/status
       const upstreamPath = path.replace('/auth', '');
-      return proxyToUpstream(env.UPSTREAM_AUTH_SERVICE, request, upstreamPath);
+      const authService = env.UPSTREAM_AUTH_SERVICE || env.UPSTREAM_USER_SERVICE || 'http://volefuture.com';
+      return proxyToUpstream(authService, request, upstreamPath);
 
     } else {
       // 未匹配的路由
