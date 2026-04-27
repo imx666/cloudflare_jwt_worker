@@ -14,7 +14,7 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEHFCSJMTadjndgDnAV9akaF0RT6Ya
 
 
 # 后端服务地址（根据实际环境修改）
-UPSTREAM_USER_SERVICE = "http://volefuture.com"
-UPSTREAM_ORDER_SERVICE = "http://volefuture.com"
-UPSTREAM_PRODUCT_SERVICE = "http://volefuture.com"
-UPSTREAM_AUTH_SERVICE = "http://volefuture.com"
+UPSTREAM_USER_SERVICE = "https://volefuture.com"
+UPSTREAM_ORDER_SERVICE = "https://volefuture.com"
+UPSTREAM_PRODUCT_SERVICE = "https://volefuture.com"
+UPSTREAM_AUTH_SERVICE = "https://volefuture.com"
